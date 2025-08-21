@@ -78,7 +78,7 @@ def correlation_overview(df, threshold=0.3, figsize=(16, 12), cmap="coolwarm"):
     plt.show()
 
 
-ef target_correlations(df, target, threshold=None):
+def target_correlations(df, target, threshold=None):
     """
     Compute correlation of all features with the target variable.
     
