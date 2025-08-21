@@ -1,0 +1,109 @@
+import numpy as np
+import pandas as pd 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+import re
+
+from sklearn.preprocessing import OneHotEncoder
+
+def plot_all(df, max_unique=20):
+    """
+    Loops through all columns in df and plots bar charts 
+    for those that are categorical (object, category, or numeric with few uniques).
+    """
+    for col in df.columns:
+        series = df[col]
+        dtype = series.dtype
+        
+        # Case 1: categorical dtype
+        if isinstance(dtype, pd.CategoricalDtype) or dtype == "object":
+            counts = series.value_counts()
+            counts.plot(kind="bar")
+            plt.title(f"Bar chart of {col}")
+            plt.xlabel(col)
+            plt.ylabel("Count")
+            plt.show()
+        
+        # Case 2: numeric but with few unique values (treat as categorical)
+        elif pd.api.types.is_numeric_dtype(dtype) and series.nunique() <= max_unique:
+            counts = series.value_counts().sort_index()
+            counts.plot(kind="bar")
+            plt.title(f"Bar chart of {col} (numeric categorical)")
+            plt.xlabel(col)
+            plt.ylabel("Count")
+            plt.show()
+
+        else: 
+            plt.hist(series, bins = 10)
+            plt.title(f"Histogram of {col} (numeric)")
+            plt.xlabel(col)
+            plt.ylabel("Count")
+            plt.show()            
+
+
+def correlation_overview(df, threshold=0.3, figsize=(16, 12), cmap="coolwarm"):
+    """
+    Display correlations above a threshold and a heatmap.
+    
+    Parameters:
+        df (pd.DataFrame): Input data
+        threshold (float): Minimum absolute correlation to display in table
+        figsize (tuple): Figure size for heatmap
+        cmap (str): Colormap for heatmap
+    """
+    # 1. Compute correlation matrix
+    corr_matrix = df.corr()
+    
+    # 2. Flatten and sort correlations, remove self-correlations
+    corr_pairs = corr_matrix.unstack()
+    corr_pairs = corr_pairs[corr_pairs.index.get_level_values(0) != corr_pairs.index.get_level_values(1)]
+    corr_pairs = corr_pairs.abs().sort_values(ascending=False)
+    
+    # Filter by threshold
+    corr_pairs_filtered = corr_pairs[corr_pairs >= threshold]
+    
+    # Remove duplicates (1-2 and 2-1)
+    corr_pairs_filtered = corr_pairs_filtered[~corr_pairs_filtered.index.duplicated()]
+    
+    print("Correlations above threshold:")
+    display(corr_pairs_filtered)
+    
+    # 3. Heatmap with upper triangle masked
+    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
+    plt.figure(figsize=figsize)
+    sns.heatmap(corr_matrix, mask=mask, annot=True, fmt=".2f", cmap=cmap)
+    plt.title("Correlation Heatmap (upper triangle masked)")
+    plt.show()
+
+
+ef target_correlations(df, target, threshold=None):
+    """
+    Compute correlation of all features with the target variable.
+    
+    Parameters:
+        df (pd.DataFrame): Input dataset
+        target (str): Name of the outcome variable
+        threshold (float, optional): If set, only return correlations with abs(corr) >= threshold
+    """
+    # Ensure target exists
+    if target not in df.columns:
+        raise ValueError(f"Target '{target}' not found in DataFrame.")
+    
+    # Compute correlations with target
+    corr_with_target = df.corr()[target].drop(target).sort_values(key=abs, ascending=False)
+    
+    # Apply threshold if specified
+    if threshold is not None:
+        corr_with_target = corr_with_target[abs(corr_with_target) >= threshold]
+    
+    return corr_with_target.sort_values()
+
+
+asthma_vis = pd.read_csv("../data/asthma_disease_data_vis.csv")
+asthma_an = pd.read_csv("../data/asthma_disease_data_analysis.csv")
+
+plot_all(asthma_vis.iloc[:, 1:])
+
+correlation_overview(asthma_an, threshold=0.2)
